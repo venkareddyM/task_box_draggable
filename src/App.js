@@ -10,6 +10,38 @@ const App = () => {
     age: "",
   });
   const [users, setUsers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const sortAgeGroups = (ageGroups) => {
+    return ageGroups.sort((a, b) => a.localeCompare(b));
+  };
+
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setShowModal(true);
+  };
+
+  const sortUsersByName = (users) => {
+    return users.sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleUpdateUser = () => {
+    setUsers((prevUsers) => {
+      return prevUsers.map((user) =>
+        user.id === editingUser.id
+          ? { ...user, ...formData, ageGroup: determineAgeGroup(formData.age) }
+          : user
+      );
+    });
+    setEditingUser(null);
+    setShowModal(false);
+  };
 
   const handleAddUser = () => {
     setUsers([
@@ -24,26 +56,16 @@ const App = () => {
     setFormData({ name: "", email: "", phone: "", age: "" });
   };
 
+  const handleDeleteUser = (id) => {
+    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id));
+  };
+
   const determineAgeGroup = (age) => {
     age = parseInt(age);
     if (age >= 1 && age <= 18) return "1-18";
     if (age >= 19 && age <= 25) return "19-25";
     if (age >= 26 && age <= 45) return "26-45";
     return "45+";
-  };
-  const getMinimumAgeForGroup = (ageGroup) => {
-    switch (ageGroup) {
-      case "1-18":
-        return 1;
-      case "19-25":
-        return 19;
-      case "26-45":
-        return 26;
-      case "45+":
-        return 45;
-      default:
-        return 0;
-    }
   };
 
   const onDragStart = (e, id) => {
@@ -64,9 +86,31 @@ const App = () => {
     setUsers(usersCopy);
   };
 
+  const getMinimumAgeForGroup = (ageGroup) => {
+    switch (ageGroup) {
+      case "1-18":
+        return 1;
+      case "19-25":
+        return 19;
+      case "26-45":
+        return 26;
+      case "45+":
+        return 45;
+      default:
+        return 0;
+    }
+  };
+
   return (
     <div className="App">
       <h1>Box Draggable</h1>
+      <input
+        type="text"
+        placeholder="Search by name"
+        value={searchQuery}
+        onChange={handleSearch}
+      />
+
       <button onClick={() => setShowModal(true)}>Add</button>
 
       {showModal && (
@@ -75,12 +119,12 @@ const App = () => {
             <span className="close" onClick={() => setShowModal(false)}>
               &times;
             </span>
+
             <input
               type="text"
               placeholder="Name"
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
             <input
               type="email"
@@ -103,14 +147,16 @@ const App = () => {
                 setFormData({ ...formData, age: e.target.value })
               }
             />
-            <button onClick={handleAddUser}>Add</button>
+            <button onClick={editingUser ? handleUpdateUser : handleAddUser}>
+              {editingUser ? "Update" : "Add"}
+            </button>
             <button onClick={() => setShowModal(false)}>Cancel</button>
           </div>
         </div>
       )}
 
       <div className="age-groups">
-        {["1-18", "19-25", "26-45", "45+"].map((group) => (
+        {sortAgeGroups(["1-18", "19-25", "26-45", "45+"]).map((group) => (
           <div
             key={group}
             className="age-group"
@@ -118,20 +164,23 @@ const App = () => {
             onDrop={(e) => onDrop(e, group)}
           >
             <h2>Age {group}</h2>
-            {users
-              .filter((user) => user.ageGroup === group)
-              .map((user) => (
-                <div
-                  key={user.id}
-                  className="card"
-                  draggable
-                  onDragStart={(e) => onDragStart(e, user.id)}
-                >
-                  <p>
-                    {user.name} - {user.email} ({user.age})
-                  </p>
-                </div>
-              ))}
+            {sortUsersByName(
+              users
+                .filter((user) => user.ageGroup === group && user.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            ).map((user) => (
+              <div
+                key={user.id}
+                className="card"
+                draggable
+                onDragStart={(e) => onDragStart(e, user.id)}
+              >
+                <p>
+                  {user.name} - {user.email} {user.phone} ({user.age})
+                </p>
+                <button onClick={() => handleEditUser(user)}>Edit</button>
+                <button onClick={() => handleDeleteUser(user.id)}>Delete</button>
+              </div>
+            ))}
           </div>
         ))}
       </div>
